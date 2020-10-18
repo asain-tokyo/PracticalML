@@ -1,0 +1,176 @@
+---
+title: "Analysis of the Weight Lifting Excercise Data"
+author: "Nobu Asai"
+date: "10/18/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+library(doParallel)
+cl <- makePSOCKcluster(10)
+registerDoParallel(cl)
+options(warn=-1)
+options(scipen=100)
+```
+
+#### Executive Summary
+
+This project is to predict the manner of the Unilateral Dumbbell Biceps Curl by using the data captured by Velloso et al ^[1]^. The data were captured by using 4 different devices, "belt", "glove", "arm-band", and "Dumbbel" with accelerometer, gyroscope, and magnetometer. At first, we quickly plotted accelerometer data from "belt", "forearm (glove)", and "arm (arm-band)" againt that from "dumbbel" to see any outstanding correlations.  Then, we tested multiple models to learn with using K-fold cross validation.  By a veficiation with test data, we concluded that Random Forest was the best algorithm to create the model for this data, and observed its accuracy "1" for train-validation data, and "xxx" for test data.
+
+
+#### 1. About the data
+
+Data was downloaded from the web site below.
+
+```{r echo=TRUE, cache=TRUE}
+train_data = read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv")
+test_data = read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv")
+```
+There are 19,622 samples with 60 attributes for the train data, and 20 samples with 60 attributes for the test data for predictions.
+```{r echo=FALSE, comment=NA}
+colnames(train_data)
+```
+
+```{r echo=FALSE}
+library(gt)
+
+BC_table <- as.data.frame(matrix(ncol=3, nrow=5))
+colnames(BC_table) <- c("class","fashion","decision")
+BC_table$class <- c('A','B','C','D','E')
+BC_table$fashion[1] <- "Exactly according to the specification"
+BC_table$fashion[2] <- "Throwing the elbows to the front"
+BC_table$fashion[3] <- "Lifting the dumbbell only halfway"
+BC_table$fashion[4] <- "Lowering the dumbbell only halfway"
+BC_table$fashion[5] <- "Throwing the hips to the front"
+BC_table$decision <- "mistake"
+BC_table$decision[1] <- "success"
+
+gt(BC_table) %>% 
+    tab_options(table.width=pct(90), table.font.size=10, table.align="center")
+
+```
+
+
+
+#### Preparing data
+
+
+
+```{r echo=TRUE}
+picks <- list()
+# remove "blank" and "NA" from train/test data
+for (i in 1:ncol(train_data)) {
+    col_test <- train_data[,c(i)]
+    if (sum(is.na(col_test)) == 0) {
+        if (sum(col_test == "") == 0) {
+            # no blank/NA - to be picked up
+            picks <- c(picks, i)
+        }
+    }
+}
+train_norm <- train_data[, unlist(picks)]
+test_norm <- test_data[, unlist(picks)]
+
+# We do not need "X", "user_name", "raw_timestamp_part_1","raw_timestamp_part_2", "cvtd_timestamp", "new_window", and "num_window" 
+
+train_norm <- train_norm[,8:60]
+test_norm <- test_norm[,8:60]
+```
+
+
+```{r echo=TRUE}
+# 80% for train and validation, 20% for test
+library(caret)
+set.seed(154)
+train_list <- createDataPartition(train_norm$classe, p=0.8, list=FALSE)
+train_cv <- train_norm[train_list,]
+test_cv <- train_norm[-train_list,]
+```
+
+#### Exploratory analysis
+
+```{r echo=TRUE, warning=FALSE, message=FALSE}
+# Setting up libraries for this study
+
+library(ggplot2)
+```
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, fig.width=12, fig.height=4}
+library(ggplot2)
+library(patchwork)
+
+g1 <- ggplot(data=train_norm, aes(x=total_accel_dumbbell, y=total_accel_arm, color=classe))
+g1 <- g1 + geom_point()
+g1 <- g1 + ggtitle("Acceleration - Dumbbel v.s. Arm")
+
+g2 <- ggplot(data=train_norm, aes(x=total_accel_dumbbell, y=total_accel_belt, color=classe))
+g2 <- g2 + geom_point()
+g2 <- g2 + ggtitle("Acceleration - Dumbbel v.s. Belt")
+
+g3 <- ggplot(data=train_norm, aes(x=total_accel_dumbbell, y=total_accel_forearm, color=classe))
+g3 <- g3 + geom_point()
+g3 <- g3 + ggtitle("Acceleration - Dumbbel v.s. Forearm")
+
+g1 | g2 | g3
+
+```
+
+
+
+#### Considerations on cross validation
+
+```{r echo=TRUE}
+# K-fold cross validation (to minimize overfitting)
+train_control <- trainControl(method='repeatedcv', number=10, repeats=10)
+```
+
+
+#### Selecting a model
+
+```{r echo=TRUE, cache=TRUE}
+#model_gbm <- train(classe ~ ., data=train_cv, method='gbm', preProcess=c("center","scale"), trControl=train_control, verbose=FALSE)
+model_lda <- train(classe ~ ., data=train_cv, method='lda', preProcess=c("center","scale"), trControl=train_control)
+model_qda <- train(classe ~ ., data=train_cv, method='qda', preProcess=c("center","scale"), trControl=train_control)
+#model_rf <- train(classe ~ ., data=train_cv, method='rf', preProcess=c("center","scale"), trControl=train_control)
+```
+```{r echo=TRUE}
+#gbm_accuracy <- confusionMatrix(train_cv$classe, predict(model_gbm, train_cv))$overall[1]
+lda_accuracy <- confusionMatrix(train_cv$classe, predict(model_lda, train_cv))$overall[1]
+qda_accuracy <- confusionMatrix(train_cv$classe, predict(model_qda, train_cv))$overall[1]
+#rf_accuracy <- confusionMatrix(train_cv$classe, predict(model_rf, train_cv))$overall[1]
+```
+
+#####  Evaluation with test data
+
+```{r echo=TRUE}
+#confusionMatrix(test_cv$classe, predict(model_gbm, test_cv))$overall[1]
+#confusionMatrix(test_cv$classe, predict(model_rf, test_cv))$overall[1]
+confusionMatrix(test_cv$classe, predict(model_qda, test_cv))$overall[1]
+```
+
+
+#### Predictions 
+
+
+```{r echo=TRUE}
+#predict(model_gbm, test_norm)
+#predict(model_rf, test_norm)
+```
+
+
+
+##### Reference
+Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013.
+
+
+Ugulino, W.; Cardador, D.; Vega, K.; Velloso, E.; Milidiu, R.; Fuks, H. Wearable Computing: Accelerometers' Data Classification of Body Postures and Movements. Proceedings of 21st Brazilian Symposium on Artificial Intelligence. Advances in Artificial Intelligence - SBIA 2012. In: Lecture Notes in Computer Science. , pp. 52-61. Curitiba, PR: Springer Berlin / Heidelberg, 2012. ISBN 978-3-642-34458-9. DOI: 10.1007/978-3-642-34459-6_6. 
+
+
+
+
+
