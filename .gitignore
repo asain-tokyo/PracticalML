@@ -4,5 +4,6 @@
 .Ruserdata
 .R
 .gz
+.tar.gz
 /Course_Project_cache/*
 /Course_Project_files/*
