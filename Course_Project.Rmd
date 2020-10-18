@@ -3,6 +3,7 @@ title: "Analysis of the Weight Lifting Exercise Data"
 author: "Nobu Asai"
 date: "10/18/2020"
 output: html_document
+
 ---
 
 ```{r setup, include=FALSE}
@@ -138,7 +139,7 @@ gt(att_table) %>%
   
 From Table 2, we selected total_accel_arm, total_accel_forearm, and total_accel_belt to see any correlations to "total_accel_dumbbell".  
 
-```{r echo=FALSE, warning=FALSE, message=FALSE, fig.width=12, fig.height=4}
+```{r echo=FALSE, warning=FALSE, message=FALSE, fig.width=12, fig.height=3}
 library(ggplot2)
 library(patchwork)
 
