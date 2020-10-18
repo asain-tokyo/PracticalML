@@ -1,5 +1,5 @@
 ---
-title: "Analysis of the Weight Lifting Excercise Data"
+title: "Analysis of the Weight Lifting Exercise Data"
 author: "Nobu Asai"
 date: "10/18/2020"
 output: html_document
@@ -16,10 +16,12 @@ registerDoParallel(cl)
 options(warn=-1)
 options(scipen=100)
 ```
-
+  
+<br>
+  
 #### Executive Summary
 
-This project is to predict the manner of the Unilateral Dumbbell Biceps Curl by using the data captured by Velloso et al ^[1]^. The data were captured by using 4 different devices, "belt", "glove", "arm-band", and "Dumbbel" with accelerometer, gyroscope, and magnetometer. At first, we quickly plotted accelerometer data from "belt", "forearm (glove)", and "arm (arm-band)" againt that from "dumbbel" to see any outstanding correlations.  Then, we tested multiple models to learn with using K-fold cross validation.  By a veficiation with test data, we concluded that Random Forest was the best algorithm to create the model for this data, and observed its accuracy "1" for train-validation data, and "xxx" for test data.
+This project is to predict a manner of the Unilateral Dumbbell Biceps Curl by using the data provided by Velloso et al ^[1]^. The data were captured by using 4 different devices, "belt", "glove", "arm-band", and "Dumbbell" with accelerometer, gyroscope, and magnetometer. At first, we quickly plotted accelerometer data from "belt", "forearm (glove)", and "arm (arm-band)" against that from "dumbbell" to see any outstanding correlations.  Then, we tested multiple models with the K-fold cross validation to find the best model.  By a verification with test data, we concluded that the Random Forest was the best algorithm to create the model for this project, and observed its accuracy "1" for train-validation data, and "0.9961764" for test data.
 
 
 #### 1. About the data
@@ -31,10 +33,8 @@ train_data = read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-t
 test_data = read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv")
 ```
 There are 19,622 samples with 60 attributes for the train data, and 20 samples with 60 attributes for the test data for predictions.
-```{r echo=FALSE, comment=NA}
-colnames(train_data)
-```
-
+There is one difference between the train data and the test data.  The last attributes in the train data is "classe" which indicates the class of a manner for each sampled data, and that in the test data is "problem_id" which needs to be replaced by the predicted values.
+The attribute "classe" includes 5 classes as follows.
 ```{r echo=FALSE}
 library(gt)
 
@@ -50,16 +50,17 @@ BC_table$decision <- "mistake"
 BC_table$decision[1] <- "success"
 
 gt(BC_table) %>% 
-    tab_options(table.width=pct(90), table.font.size=10, table.align="center")
+    tab_options(table.width=pct(90), table.font.size=12, table.align="center") %>% 
+    tab_header("Table 1. Classes by behaviors")
 
 ```
-
-
-
-#### Preparing data
-
-
-
+  
+<br>    
+  
+#### 2. Preparing data
+  
+In an original data, there were many "NA" and "blank", which needed to be removed for machine learning and prediction.  And some attributes, which were not directly related to 4 sensing devices like a user name and time stamps, were removed for this assessment.
+  
 ```{r echo=TRUE}
 picks <- list()
 # remove "blank" and "NA" from train/test data
@@ -75,14 +76,14 @@ for (i in 1:ncol(train_data)) {
 train_norm <- train_data[, unlist(picks)]
 test_norm <- test_data[, unlist(picks)]
 
-# We do not need "X", "user_name", "raw_timestamp_part_1","raw_timestamp_part_2", "cvtd_timestamp", "new_window", and "num_window" 
-
+# remove "X","user_name","raw_timestamp_part_1","raw_timestamp_part_2","cvtd_timestamp","new_window","num_window" 
 train_norm <- train_norm[,8:60]
 test_norm <- test_norm[,8:60]
 ```
+  
+As the test data prepared was for prediction testings, we created another test data from the train data to evaluate the accuracy of multiple models to select one.  From the train data, 80% of data was splitted for "training and validation", and 20% of data was splitted for "testing.  
 
-
-```{r echo=TRUE}
+```{r echo=TRUE, warning=FALSE, message=FALSE}
 # 80% for train and validation, 20% for test
 library(caret)
 set.seed(154)
@@ -91,14 +92,51 @@ train_cv <- train_norm[train_list,]
 test_cv <- train_norm[-train_list,]
 ```
 
-#### Exploratory analysis
+Now, the training (and validation) data, train_cv, includes following attributes.  Those attributes are common for the test data, test_cv. In addition to these attributes, both datasets includes "classe" attribute as expected outcomes.
+  
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+att_table <- as.data.frame(matrix(ncol=4, nrow=7))
+colnames(att_table) <- c("arm","forearm","belt","dumbbell")
+att_table$arm[1] <- "accel_arm_x/_y/_z"
+att_table$forearm[1] <- "accel_forearm_x/_y/_z"
+att_table$belt[1] <- "accel_belt_x/_y/_z"
+att_table$dumbbell[1] <- "accel_dumbbell_x/_y/_z"
+att_table$arm[2] <- "gyros_arm_x/_y/_z"
+att_table$forearm[2] <- "gyros_forearm_x/_y/_z"
+att_table$belt[2] <- "gyros_belt_x/_y/_z"
+att_table$dumbbell[2] <- "gyros_dumbbell_x/_y/_z"
+att_table$arm[3] <- "magnet_arm_x/_y/_z"
+att_table$forearm[3] <- "magnet_forearm_x/_y/_z"
+att_table$belt[3] <- "magnet_belt_x/_y/_z"
+att_table$dumbbell[3] <- "magnet_dumbbell_x/_y/_z"
+att_table$arm[4] <- "pitch_arm"
+att_table$forearm[4] <- "pitch_forearm"
+att_table$belt[4] <- "pitch_belt"
+att_table$dumbbell[4] <- "pitch_dumbbell"
+att_table$arm[5] <- "roll_arm"
+att_table$forearm[5] <- "roll_forearm"
+att_table$belt[5] <- "roll_belt"
+att_table$dumbbell[5] <- "roll_dumbbell"
+att_table$arm[6] <- "yaw_arm"
+att_table$forearm[6] <- "yaw_forearm"
+att_table$belt[6] <- "yaw_belt"
+att_table$dumbbell[6] <- "yaw_dumbbell"
+att_table$arm[7] <- "total_accel_arm"
+att_table$forearm[7] <- "total_accel_forearm"
+att_table$belt[7] <- "total_accel_belt"
+att_table$dumbbell[7] <- "total_accel_dumbbell"
+colnames(att_table) <- c("arm (arm-band)","forearm (glove)","belt","dumbbell")
 
-```{r echo=TRUE, warning=FALSE, message=FALSE}
-# Setting up libraries for this study
-
-library(ggplot2)
+gt(att_table) %>% 
+    tab_options(table.width=pct(90), table.font.size=12, table.align="center") %>% 
+    tab_header("Table 2. Attributes in train/test data")
 ```
-
+  
+<br>  
+    
+#### 3. Exploratory analysis
+  
+From Table 2, we selected total_accel_arm, total_accel_forearm, and total_accel_belt to see any correlations to "total_accel_dumbbell".  
 
 ```{r echo=FALSE, warning=FALSE, message=FALSE, fig.width=12, fig.height=4}
 library(ggplot2)
@@ -106,71 +144,127 @@ library(patchwork)
 
 g1 <- ggplot(data=train_norm, aes(x=total_accel_dumbbell, y=total_accel_arm, color=classe))
 g1 <- g1 + geom_point()
-g1 <- g1 + ggtitle("Acceleration - Dumbbel v.s. Arm")
+g1 <- g1 + ggtitle("Acceleration - Dumbbell v.s. Arm")
 
-g2 <- ggplot(data=train_norm, aes(x=total_accel_dumbbell, y=total_accel_belt, color=classe))
+g2 <- ggplot(data=train_norm, aes(x=total_accel_dumbbell, y=total_accel_forearm, color=classe))
 g2 <- g2 + geom_point()
-g2 <- g2 + ggtitle("Acceleration - Dumbbel v.s. Belt")
+g2 <- g2 + ggtitle("Acceleration - Dumbbell v.s. Forearm")
 
-g3 <- ggplot(data=train_norm, aes(x=total_accel_dumbbell, y=total_accel_forearm, color=classe))
+g3 <- ggplot(data=train_norm, aes(x=total_accel_dumbbell, y=total_accel_belt, color=classe))
 g3 <- g3 + geom_point()
-g3 <- g3 + ggtitle("Acceleration - Dumbbel v.s. Forearm")
+g3 <- g3 + ggtitle("Acceleration - Dumbbell v.s. Belt")
 
 g1 | g2 | g3
 
 ```
-
-
-
-#### Considerations on cross validation
+  
+It is quite difficult to say that any of these attributes has strong correlations to behavior classes, A to E.
+  
+<br>  
+  
+#### 4. Preparing K-fold cross validation
+  
+For learning the data, we used the K-fold cross validation with K=10, and repeats=10.  These two parameters, eventually, needed to be tuned to find the best K value and number of repeats, depending to outcomes.  
 
 ```{r echo=TRUE}
 # K-fold cross validation (to minimize overfitting)
 train_control <- trainControl(method='repeatedcv', number=10, repeats=10)
 ```
+  
+<br>  
 
+#### 5. Selecting a model  
+  
+To create a model, we selected 4 different algorithms as follows.  
 
-#### Selecting a model
+* GBM : Generalized Boosted Model
+* LDA : Linear Discriminant Analysis
+* QDA : Quadratic Discriminant Analysis
+* RF  : Random Forest
+  
+##### 5.1 Training models  
 
-```{r echo=TRUE, cache=TRUE}
-#model_gbm <- train(classe ~ ., data=train_cv, method='gbm', preProcess=c("center","scale"), trControl=train_control, verbose=FALSE)
+```{r models, echo=TRUE, cache=TRUE}
+model_gbm <- train(classe ~ ., data=train_cv, method='gbm', preProcess=c("center","scale"), trControl=train_control, verbose=FALSE)
 model_lda <- train(classe ~ ., data=train_cv, method='lda', preProcess=c("center","scale"), trControl=train_control)
 model_qda <- train(classe ~ ., data=train_cv, method='qda', preProcess=c("center","scale"), trControl=train_control)
-#model_rf <- train(classe ~ ., data=train_cv, method='rf', preProcess=c("center","scale"), trControl=train_control)
+model_rf <- train(classe ~ ., data=train_cv, method='rf', preProcess=c("center","scale"), trControl=train_control)
 ```
-```{r echo=TRUE}
-#gbm_accuracy <- confusionMatrix(train_cv$classe, predict(model_gbm, train_cv))$overall[1]
+
+```{r cfm_train, echo=TRUE}
+gbm_accuracy <- confusionMatrix(train_cv$classe, predict(model_gbm, train_cv))$overall[1]
 lda_accuracy <- confusionMatrix(train_cv$classe, predict(model_lda, train_cv))$overall[1]
 qda_accuracy <- confusionMatrix(train_cv$classe, predict(model_qda, train_cv))$overall[1]
-#rf_accuracy <- confusionMatrix(train_cv$classe, predict(model_rf, train_cv))$overall[1]
+rf_accuracy <- confusionMatrix(train_cv$classe, predict(model_rf, train_cv))$overall[1]
 ```
 
-#####  Evaluation with test data
+```{r echo=FALSE}
+acc_table <- as.data.frame(matrix(ncol=4, nrow=1))
+colnames(acc_table) <- c("GBM","LDA","QDA","RF")
+acc_table$GBM <- gbm_accuracy
+acc_table$LDA <- lda_accuracy
+acc_table$QDA <- qda_accuracy
+acc_table$RF  <- rf_accuracy
+gt(acc_table) %>% 
+    tab_options(table.width=pct(70), table.font.size=11, table.align="left") %>% 
+    tab_header("Table 3. Accuracy by Models - with training/validation data") %>% 
+    cols_width(everything() ~ px(60)) %>% 
+    cols_align(align = "left")
+
+```
+  
+<br>
+  
+#####  5.2 Evaluation with test data  
+To evaluate the model with considering "out of sample error", we used test data to check its accuracy as follows
+
+```{r cfm_test, echo=TRUE}
+gbm_test <- confusionMatrix(test_cv$classe, predict(model_gbm, test_cv))$overall[1]
+lda_test <- confusionMatrix(test_cv$classe, predict(model_lda, test_cv))$overall[1]
+qda_test <- confusionMatrix(test_cv$classe, predict(model_qda, test_cv))$overall[1]
+rf_test <- confusionMatrix(test_cv$classe, predict(model_rf, test_cv))$overall[1]
+
+```
+  
+```{r echo=FALSE}
+acc_table2 <- as.data.frame(matrix(ncol=4, nrow=1))
+colnames(acc_table2) <- c("GBM","LDA","QDA","RF")
+acc_table2$GBM <- gbm_test
+acc_table2$LDA <- lda_test
+acc_table2$QDA <- qda_test
+acc_table2$RF  <- rf_test
+gt(acc_table2) %>% 
+    tab_options(table.width=pct(70), table.font.size=11, table.align="left") %>% 
+    tab_header("Table 4. Accuracy by Models - with test data") %>% 
+    cols_width(everything() ~ px(60)) %>% 
+    cols_align(align = "left")
+
+```  
+<br>
+  
+From the above, we selected "Random Forest" model for further predictions.  Since its accuracy was quite high, we did not change K/Repeat value anymore.
+  
+<br>  
+  
+#### 6. Predictions 
+  
+Then, we used "given" test data to predict 20 cases with the "Random Forest" model.
 
 ```{r echo=TRUE}
-#confusionMatrix(test_cv$classe, predict(model_gbm, test_cv))$overall[1]
-#confusionMatrix(test_cv$classe, predict(model_rf, test_cv))$overall[1]
-confusionMatrix(test_cv$classe, predict(model_qda, test_cv))$overall[1]
+predict(model_rf, test_norm)
 ```
+  
+<br>  
+  
+#### 7. Conclusion  
+  
+By using the Random Forest model, we could successfully predict the the manner of the Unilateral Dumbbell Biceps Curl.  Its training accuracy was "`r rf_accuracy`", and test accuracy was "`r rf_test`"
 
+ 
+<br>  
 
-#### Predictions 
+#### Reference   
+[1] Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013.
 
-
-```{r echo=TRUE}
-#predict(model_gbm, test_norm)
-#predict(model_rf, test_norm)
-```
-
-
-
-##### Reference
-Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013.
-
-
-Ugulino, W.; Cardador, D.; Vega, K.; Velloso, E.; Milidiu, R.; Fuks, H. Wearable Computing: Accelerometers' Data Classification of Body Postures and Movements. Proceedings of 21st Brazilian Symposium on Artificial Intelligence. Advances in Artificial Intelligence - SBIA 2012. In: Lecture Notes in Computer Science. , pp. 52-61. Curitiba, PR: Springer Berlin / Heidelberg, 2012. ISBN 978-3-642-34458-9. DOI: 10.1007/978-3-642-34459-6_6. 
-
-
-
-
+<br>
 

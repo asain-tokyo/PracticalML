@@ -2,3 +2,7 @@
 .Rhistory
 .RData
 .Ruserdata
+.R
+.gz
+/Course_Project_cache/*
+/Course_Project_files/*
